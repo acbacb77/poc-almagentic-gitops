@@ -1,0 +1,16 @@
+# Solo dentro del clúster (ClusterIP, sin Ingress): /metrics no se expone fuera.
+# Para probar desde el equipo: kubectl -n staging port-forward svc/poc-almagentic-app 8000:80
+apiVersion: v1
+kind: Service
+metadata:
+  name: poc-almagentic-app
+  labels:
+    app.kubernetes.io/name: poc-almagentic-app
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: poc-almagentic-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

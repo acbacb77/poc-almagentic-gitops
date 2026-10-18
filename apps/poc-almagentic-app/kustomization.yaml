@@ -1,0 +1,15 @@
+# API del catálogo en staging. El digest lo cambia el promotor con un PR (tarea 10):
+# fusionar ese PR es la aprobación del despliegue.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: staging
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: poc-almagentic
+    includeSelectors: false
+resources:
+  - deployment.yaml
+  - service.yaml
+images:
+  - name: ghcr.io/acbacb77/poc-almagentic-app
+    digest: sha256:beb1491f13f7c9b44b6ae94ec0b3532765097e595978a90dfed1556d3c02bce4

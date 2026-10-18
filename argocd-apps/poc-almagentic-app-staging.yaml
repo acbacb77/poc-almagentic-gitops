@@ -1,0 +1,19 @@
+# La API en staging. Argo CD sincroniza solo: el gate es el merge del PR de promoción.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: poc-almagentic-app-staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/acbacb77/poc-almagentic-gitops.git
+    targetRevision: main
+    path: apps/poc-almagentic-app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
