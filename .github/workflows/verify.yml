@@ -10,7 +10,7 @@ on:
 permissions: {}
 
 jobs:
-  images:
+  verify:
     permissions:
       contents: read
     uses: acbacb77/poc-almagentic-core/.github/workflows/reusable-verify-images.yml@v1
