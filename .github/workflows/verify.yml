@@ -1,0 +1,16 @@
+# Check obligatorio de gitops (tarea 10): toda imagen de apps/ va por digest, se construyó
+# desde main de la aplicación y está firmada por el pipeline de core.
+name: verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  verify:
+    permissions:
+      contents: read
+    uses: acbacb77/poc-almagentic-core/.github/workflows/reusable-verify-images.yml@v1
