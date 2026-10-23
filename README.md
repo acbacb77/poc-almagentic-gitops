@@ -37,11 +37,11 @@ apps/                     # manifiestos de las aplicaciones (tarea 10)
    kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
    ```
    Entra en https://localhost:8080. Deberías ver `root`, `cluster-namespaces` y `poc-almagentic-app-staging` en verde.
-6. Prueba la API desplegada (solo es accesible dentro del clúster; `port-forward` la acerca a tu equipo):
+6. Prueba la API desplegada. El `Service` es de tipo `LoadBalancer` y Docker Desktop lo publica en el puerto 8000 del equipo:
    ```bash
    kubectl -n staging rollout status deploy/poc-almagentic-app
-   kubectl -n staging port-forward svc/poc-almagentic-app 8000:80
-   curl -s "localhost:8000/api/v1/productos?q=taza"
+   kubectl -n staging get svc poc-almagentic-app     # EXTERNAL-IP: localhost
+   curl -s "localhost:8000/api/v1/productos?q=taza"  # desde un contenedor: host.docker.internal:8000
    ```
 
 ## Cómo llega una versión a staging (tarea 10)

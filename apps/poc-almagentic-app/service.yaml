@@ -1,5 +1,7 @@
-# Solo dentro del clúster (ClusterIP, sin Ingress): /metrics no se expone fuera.
-# Para probar desde el equipo: kubectl -n staging port-forward svc/poc-almagentic-app 8000:80
+# LoadBalancer: Docker Desktop publica el puerto 8000 en el equipo (localhost:8000 en Windows;
+# host.docker.internal:8000 desde contenedores). En un clúster real iría detrás de un Ingress.
+# Ojo: expone también /metrics. Pendiente (tarea 11): servir las métricas en un puerto aparte
+# que este Service no publique.
 apiVersion: v1
 kind: Service
 metadata:
@@ -7,10 +9,10 @@ metadata:
   labels:
     app.kubernetes.io/name: poc-almagentic-app
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
     app.kubernetes.io/name: poc-almagentic-app
   ports:
     - name: http
-      port: 80
+      port: 8000
       targetPort: http
