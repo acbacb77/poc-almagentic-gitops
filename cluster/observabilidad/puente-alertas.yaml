@@ -1,0 +1,85 @@
+# Puente alerta → issue: Alertmanager lo llama y abre issues en app.
+# Imagen oficial de Python fijada por digest (la misma base que la API); el código va en un ConfigMap.
+# El token (fine-grained PAT) vive en el Secret observabilidad-github, que se crea a mano con kubectl (nunca en git).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: puente-alertas
+  labels:
+    app.kubernetes.io/name: puente-alertas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: puente-alertas
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: puente-alertas
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: puente-alertas
+          image: python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258
+          command: ["python", "-I", "/app/puente.py"]
+          env:
+            - name: GITHUB_REPO
+              value: acbacb77/poc-almagentic-app
+            - name: GITHUB_TOKEN_FILE
+              value: /run/secrets/github/token
+            - name: PUERTO
+              value: "8080"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /salud
+              port: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: codigo
+              mountPath: /app
+              readOnly: true
+            - name: github
+              mountPath: /run/secrets/github
+              readOnly: true
+      volumes:
+        - name: codigo
+          configMap:
+            name: puente-alertas-codigo
+        - name: github
+          secret:
+            secretName: observabilidad-github
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: puente-alertas
+  labels:
+    app.kubernetes.io/name: puente-alertas
+spec:
+  selector:
+    app.kubernetes.io/name: puente-alertas
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

@@ -14,6 +14,10 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: poc-almagentic-app
+      annotations:
+        # Prometheus lee las métricas del puerto propio, que el Service no publica (tarea 11).
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9000"
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -26,9 +30,14 @@ spec:
         - name: api
           # Sin etiqueta: kustomize pone el digest de kustomization.yaml.
           image: ghcr.io/acbacb77/poc-almagentic-app
+          env:
+            - name: METRICS_PORT
+              value: "9000"
           ports:
             - name: http
               containerPort: 8000
+            - name: metrics
+              containerPort: 9000
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

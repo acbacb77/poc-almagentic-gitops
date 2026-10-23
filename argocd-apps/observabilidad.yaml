@@ -1,0 +1,19 @@
+# Puente alerta → issue, exportador de telemetría de los agentes y paneles de Grafana (tarea 11).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observabilidad
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/acbacb77/poc-almagentic-gitops.git
+    targetRevision: main
+    path: cluster/observabilidad
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observabilidad
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

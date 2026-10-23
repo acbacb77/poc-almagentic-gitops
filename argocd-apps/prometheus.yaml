@@ -1,0 +1,99 @@
+# Prometheus y Alertmanager (tarea 11). Chart fijado por versión; sin disco persistente
+# (clúster local) y solo con lo necesario: ni node-exporter, ni kube-state-metrics, ni pushgateway.
+# Prometheus descubre los pods con anotaciones prometheus.io/* (API en :9000, exportador en :9100).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus
+    targetRevision: 29.37.1
+    helm:
+      releaseName: prometheus
+      valuesObject:
+        kube-state-metrics:
+          enabled: false
+        prometheus-node-exporter:
+          enabled: false
+        prometheus-pushgateway:
+          enabled: false
+        server:
+          retention: 2d
+          persistentVolume:
+            enabled: false
+          service:
+            type: LoadBalancer
+            servicePort: 9090
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              memory: 768Mi
+        alertmanager:
+          persistence:
+            enabled: false
+          config:
+            global: {}
+            receivers:
+              - name: puente-github
+                webhook_configs:
+                  - url: http://puente-alertas.observabilidad.svc:8080/alertas
+                    send_resolved: true
+            route:
+              receiver: puente-github
+              group_by: [alertname]
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 24h
+        serverFiles:
+          alerting_rules.yml:
+            groups:
+              - name: poc-almagentic-app
+                rules:
+                  - alert: BusquedasRechazadas
+                    # Más del 20 % de las búsquedas de los últimos 5 minutos reciben 422 y al menos 10.
+                    expr: |
+                      (
+                        sum(rate(app_consultas_total{ruta="/api/v1/productos",estado="422"}[5m]))
+                          / sum(rate(app_consultas_total{ruta="/api/v1/productos"}[5m]))
+                      ) > 0.2
+                      and sum(increase(app_consultas_total{ruta="/api/v1/productos",estado="422"}[5m])) >= 10
+                    for: 1m
+                    labels:
+                      severity: aviso
+                    annotations:
+                      summary: Muchas búsquedas de productos se rechazan por longitud
+                      valor: '{{ $value | humanizePercentage }} de las búsquedas en 5 minutos'
+                      description: >-
+                        En staging, el {{ $value | humanizePercentage }} de las búsquedas de los últimos 5 minutos
+                        (GET /api/v1/productos?q=…) ha recibido 422 porque el texto de q supera los 100 caracteres
+                        (FR-009 de la spec 002-buscar-productos-nombre). O hay clientes que necesitan un límite mayor
+                        o hay un cliente mal configurado. Por privacidad no se registra el texto buscado (FR-011),
+                        solo la longitud en el log de búsqueda.
+                      para_quien: La tienda web que consume la API
+                      impacto: Que la tienda pueda buscar con textos más largos, o confirmar que el límite actual es el correcto.
+                      urgencia: Este mes
+                  - alert: ApiSinRespuesta
+                    expr: absent(up{app_kubernetes_io_name="poc-almagentic-app"} == 1)
+                    for: 2m
+                    labels:
+                      severity: critica
+                    annotations:
+                      summary: La API del catálogo no responde en staging
+                      valor: Ningún pod de la API responde a Prometheus
+                      description: >-
+                        Prometheus no consigue leer las métricas de ningún pod de poc-almagentic-app en staging
+                        desde hace más de 2 minutos. Revisar el Deployment en Argo CD y los eventos del namespace.
+                      urgencia: Está bloqueando a alguien
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observabilidad
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
