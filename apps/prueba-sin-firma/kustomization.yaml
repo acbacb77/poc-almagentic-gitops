@@ -1,0 +1,6 @@
+# PRUEBA (no fusionar): imagen fijada por digest pero no construida ni firmada por core.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: staging
+resources:
+  - deployment.yaml
