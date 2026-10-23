@@ -1,7 +1,7 @@
 # LoadBalancer: Docker Desktop publica el puerto 8000 en el equipo (localhost:8000 en Windows;
 # host.docker.internal:8000 desde contenedores). En un clúster real iría detrás de un Ingress.
-# Ojo: expone también /metrics. Pendiente (tarea 11): servir las métricas en un puerto aparte
-# que este Service no publique.
+# /metrics va en el puerto 9000 del pod (METRICS_PORT), que este Service no publica: solo
+# Prometheus lo lee, desde dentro del clúster (tarea 11).
 apiVersion: v1
 kind: Service
 metadata:

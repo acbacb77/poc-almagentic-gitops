@@ -1,0 +1,23 @@
+# Piezas propias de observabilidad (tarea 11). Prometheus, Alertmanager y Grafana son charts
+# de Helm con sus propias aplicaciones de Argo CD (argocd-apps/prometheus.yaml y grafana.yaml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: observabilidad
+resources:
+  - puente-alertas.yaml
+  - exportador-agentes.yaml
+configMapGenerator:
+  # Con sufijo de hash: un cambio de código reinicia el pod.
+  - name: puente-alertas-codigo
+    files:
+      - puente.py
+  - name: exportador-agentes-codigo
+    files:
+      - exportador.py
+  # Sin sufijo: el chart de Grafana lo monta por nombre.
+  - name: grafana-paneles
+    files:
+      - paneles/api.json
+      - paneles/agentes.json
+    options:
+      disableNameSuffixHash: true
