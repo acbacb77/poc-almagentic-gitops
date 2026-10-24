@@ -72,10 +72,10 @@ Antes de sincronizar hay que crear dos `Secret` a mano, una sola vez (nunca en g
 | Prometheus (consultas y alertas) | http://localhost:9090 |
 | Métricas de la API | solo dentro del clúster: puerto 9000 del pod, que el `Service` no publica |
 
-Para provocar la alerta de búsquedas rechazadas, lanza durante un par de minutos búsquedas con un `q` de más de 100 caracteres:
+Para provocar la alerta de búsquedas rechazadas, lanza durante un par de minutos búsquedas con un `q` de más de 200 caracteres (el máximo desde app#31; antes era 100):
 
 ```bash
-for i in $(seq 1 60); do curl -s -o /dev/null "localhost:8000/api/v1/productos?q=$(printf 'x%.0s' {1..120})"; sleep 2; done
+for i in $(seq 1 60); do curl -s -o /dev/null "localhost:8000/api/v1/productos?q=$(printf 'x%.0s' {1..250})"; sleep 2; done
 ```
 
 ## Cómo llega una versión a staging (tarea 10)
