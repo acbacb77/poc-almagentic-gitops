@@ -21,12 +21,28 @@ spec:
         service:
           type: LoadBalancer
           port: 3000
+        # Grafana 13 guarda todo en SQLite (emptyDir). Con bloqueos de escritura /api/health
+        # devolvía 503 y el liveness reiniciaba el pod a los ~19 min (exit 137, sin OOM).
+        # WAL deja leer mientras otro escribe; el CPU pedido evita que el chequeo se quede
+        # sin turno en el nodo de Docker Desktop.
+        grafana.ini:
+          database:
+            wal: true
+            busy_timeout: 5000
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 10
+          failureThreshold: 6
         resources:
           requests:
-            cpu: 20m
-            memory: 128Mi
+            cpu: 100m
+            memory: 256Mi
           limits:
-            memory: 384Mi
+            memory: 512Mi
         datasources:
           datasources.yaml:
             apiVersion: 1
