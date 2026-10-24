@@ -71,8 +71,8 @@ spec:
                       valor: '{{ $value | humanizePercentage }} de las búsquedas en 5 minutos'
                       description: >-
                         En staging, el {{ $value | humanizePercentage }} de las búsquedas de los últimos 5 minutos
-                        (GET /api/v1/productos?q=…) ha recibido 422 porque el texto de q supera los 100 caracteres
-                        (FR-009 de la spec 002-buscar-productos-nombre). O hay clientes que necesitan un límite mayor
+                        (GET /api/v1/productos?q=…) ha recibido 422 porque el texto de q supera los 200 caracteres
+                        (FR-009 de la spec 002-buscar-productos-nombre, ampliado por la spec 003). O hay clientes que necesitan un límite mayor
                         o hay un cliente mal configurado. Por privacidad no se registra el texto buscado (FR-011),
                         solo la longitud en el log de búsqueda.
                       para_quien: La tienda web que consume la API
