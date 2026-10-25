@@ -47,3 +47,50 @@ tests:
               valor: Ningún pod de la API responde a Prometheus
               description: Prometheus no consigue leer las métricas de ningún pod de poc-almagentic-app en staging desde hace más de 2 minutos. Revisar el Deployment en Argo CD y los eventos del namespace.
               urgencia: Está bloqueando a alguien
+  # Alertas del proceso (tarea E): llevan ambito=proceso y no pasan por el puente.
+  - interval: 1m
+    input_series:
+      - series: 'alm_workflow_fallido_timestamp{repo="app",workflow="evals",paso="no llegó a arrancar",url="u"}'
+        values: '1792950000x20'
+      - series: 'alm_promociones_sustituidas'
+        values: '2x40'
+      - series: 'alm_colector_ok'
+        values: '1x40'
+      - series: 'alm_argocd_app{app="staging",sync="Synced",health="Healthy"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: WorkflowEnRojoEnMain
+        exp_alerts:
+          - exp_labels: {severity: aviso, ambito: proceso, repo: app, workflow: evals}
+            exp_annotations:
+              summary: El último run de evals en main de app ha fallado
+      - eval_time: 35m
+        alertname: PromocionSustituida
+        exp_alerts:
+          - exp_labels: {severity: info, ambito: proceso}
+            exp_annotations:
+              summary: Hay 2 promociones abiertas a las que ya sustituye una más nueva
+      - eval_time: 35m
+        alertname: ColectorSinDatos
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: ArgoCDDesincronizado
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'alm_argocd_app{app="staging",sync="OutOfSync",health="Healthy"}'
+        values: '1x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: ColectorSinDatos
+        exp_alerts:
+          - exp_labels: {severity: aviso, ambito: proceso}
+            exp_annotations:
+              summary: El colector del estado del proceso no consigue leer GitHub o Argo CD
+      - eval_time: 20m
+        alertname: ArgoCDDesincronizado
+        exp_alerts:
+          - exp_labels: {severity: aviso, ambito: proceso, app: staging, sync: OutOfSync, health: Healthy}
+            exp_annotations:
+              summary: La aplicación staging de Argo CD está OutOfSync / Healthy
