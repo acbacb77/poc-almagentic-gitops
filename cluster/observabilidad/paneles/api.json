@@ -207,6 +207,79 @@
     "overrides": []
    },
    "options": {}
+  },
+  {
+   "id": 7,
+   "title": "Consultas por versión de la API",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 12,
+    "w": 16,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (version) (label_replace(rate(app_consultas_total{ruta=~\"/api/v[0-9]+/.*\"}[5m]), \"version\", \"$1\", \"ruta\", \"/api/(v[0-9]+)/.*\"))",
+     "legendFormat": "{{version}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Tarea D: criterio de retirada de v1. Tras la fecha de Sunset, v1 se retira solo si no recibe tráfico."
+  },
+  {
+   "id": 8,
+   "title": "Consultas a v1 en 24 h",
+   "type": "stat",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 12,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(increase(app_consultas_total{ruta=~\"/api/v1/.*\"}[24h])) or vector(0)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {},
+   "description": "Debe ser 0 antes de aprobar la retirada de v1 (Prometheus sin persistencia: si se reinicia, el periodo empieza de nuevo)."
   }
  ]
 }
