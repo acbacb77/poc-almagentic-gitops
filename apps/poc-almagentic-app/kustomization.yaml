@@ -12,4 +12,4 @@ resources:
   - service.yaml
 images:
   - name: ghcr.io/acbacb77/poc-almagentic-app
-    digest: sha256:27e2b00a7c64f538d313ddda292bbe673804487632338869a3950e63e055e654
+    digest: sha256:985aa2755bf5b3dd73339b0b640dfb38a0cc883f8898d7b58b02fd5528a2d04b
