@@ -78,6 +78,17 @@ Para provocar la alerta de búsquedas rechazadas, lanza durante un par de minuto
 for i in $(seq 1 60); do curl -s -o /dev/null "localhost:8000/api/v1/productos?q=$(printf 'x%.0s' {1..250})"; sleep 2; done
 ```
 
+### Estado del proceso (tarea E)
+
+`estado_alm.py` lee los tres repos de GitHub y las aplicaciones de Argo CD (con una cuenta de servicio que solo puede leerlas) y alimenta el panel **«Proceso ALM»** de Grafana:
+
+- En qué fase está cada petición y si te toca hacer algo.
+- Qué te espera: PRs por aprobar o fusionar, issues por decidir y promociones sustituidas que hay que cerrar.
+- Workflows en rojo en `main`, incluidos los que no llegaron a arrancar.
+- Staging frente a `main` de app, estado de Argo CD, caducidad del token y métricas DORA aproximadas.
+
+Las alertas del proceso (`ambito="proceso"`) solo se ven en Grafana y Prometheus: Alertmanager las envía a un receptor vacío y no abren issues. Usa el mismo Secret `observabilidad-github`; no hace falta crear nada nuevo.
+
 ## Cómo llega una versión a staging (tarea 10)
 
 1. Un merge a `main` de app publica una imagen firmada (`supply-chain.yml`).

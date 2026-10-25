@@ -44,8 +44,14 @@ spec:
                 webhook_configs:
                   - url: http://puente-alertas.observabilidad.svc:8080/alertas
                     send_resolved: true
+              # Alertas del proceso (tarea E): solo se ven en Grafana y Prometheus. No abren issues:
+              # son fallos de la plataforma, no peticiones de producto.
+              - name: solo-panel
             route:
               receiver: puente-github
+              routes:
+                - matchers: ['ambito="proceso"']
+                  receiver: solo-panel
               group_by: [alertname]
               group_wait: 30s
               group_interval: 5m
@@ -90,6 +96,65 @@ spec:
                         Prometheus no consigue leer las métricas de ningún pod de poc-almagentic-app en staging
                         desde hace más de 2 minutos. Revisar el Deployment en Argo CD y los eventos del namespace.
                       urgencia: Está bloqueando a alguien
+              - name: proceso-alm
+                # Tarea E: alertas sobre el propio ciclo de vida, a partir de estado_alm.py.
+                rules:
+                  - alert: WorkflowEnRojoEnMain
+                    expr: max by (repo, workflow) (alm_workflow_fallido_timestamp) > 0
+                    for: 10m
+                    labels:
+                      severity: aviso
+                      ambito: proceso
+                    annotations:
+                      summary: "El último run de {{ $labels.workflow }} en main de {{ $labels.repo }} ha fallado"
+                  - alert: StagingPorDetras
+                    expr: alm_staging_commits_detras > 0 and (time() - alm_staging_detras_desde_timestamp) > 86400
+                    for: 10m
+                    labels:
+                      severity: aviso
+                      ambito: proceso
+                    annotations:
+                      summary: "Staging lleva más de 24 h sin los últimos {{ $value }} commits de main"
+                  - alert: EsperandoAUnaPersona
+                    expr: max by (repo, numero, accion) (alm_pendiente_segundos) > 86400
+                    for: 10m
+                    labels:
+                      severity: info
+                      ambito: proceso
+                    annotations:
+                      summary: "{{ $labels.repo }}#{{ $labels.numero }} lleva más de 24 h esperando: {{ $labels.accion }}"
+                  - alert: PromocionSustituida
+                    expr: alm_promociones_sustituidas > 0
+                    for: 30m
+                    labels:
+                      severity: info
+                      ambito: proceso
+                    annotations:
+                      summary: "Hay {{ $value }} promociones abiertas a las que ya sustituye una más nueva"
+                  - alert: TokenGitHubCaducaPronto
+                    expr: (alm_token_caduca_timestamp - time()) < 7 * 86400
+                    for: 10m
+                    labels:
+                      severity: aviso
+                      ambito: proceso
+                    annotations:
+                      summary: El token de GitHub del puente y del colector caduca en menos de 7 días
+                  - alert: ArgoCDDesincronizado
+                    expr: alm_argocd_app{sync!="Synced"} or alm_argocd_app{health!="Healthy"}
+                    for: 15m
+                    labels:
+                      severity: aviso
+                      ambito: proceso
+                    annotations:
+                      summary: "La aplicación {{ $labels.app }} de Argo CD está {{ $labels.sync }} / {{ $labels.health }}"
+                  - alert: ColectorSinDatos
+                    expr: alm_colector_ok == 0 or absent(alm_colector_ok)
+                    for: 15m
+                    labels:
+                      severity: aviso
+                      ambito: proceso
+                    annotations:
+                      summary: El colector del estado del proceso no consigue leer GitHub o Argo CD
   destination:
     server: https://kubernetes.default.svc
     namespace: observabilidad

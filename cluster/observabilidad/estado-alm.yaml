@@ -1,0 +1,104 @@
+# Estado del proceso ALM (tarea E): lee GitHub (los tres repos) y las aplicaciones de Argo CD
+# y publica métricas para el panel «Proceso ALM» y las alertas del proceso.
+# Usa el mismo token de solo lectura que el exportador (Secret observabilidad-github) y una
+# cuenta de servicio que solo puede leer aplicaciones de Argo CD.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: estado-alm
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: estado-alm-lectura-argocd
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: estado-alm-lectura-argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: estado-alm-lectura-argocd
+subjects:
+  - kind: ServiceAccount
+    name: estado-alm
+    namespace: observabilidad
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: estado-alm
+  labels:
+    app.kubernetes.io/name: estado-alm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: estado-alm
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: estado-alm
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9200"
+    spec:
+      serviceAccountName: estado-alm
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: estado-alm
+          image: python:3.12-slim-bookworm@sha256:6a0e06f5ba0b373d051aabd3fffb9b873f27f9a2a3a14bcbe37dee6f0e3bbc70
+          command: ["python", "-I", "/app/estado_alm.py"]
+          env:
+            - name: REPO_APP
+              value: acbacb77/poc-almagentic-app
+            - name: REPO_CORE
+              value: acbacb77/poc-almagentic-core
+            - name: REPO_GITOPS
+              value: acbacb77/poc-almagentic-gitops
+            - name: RESPONSABLE
+              value: acbacb77
+            - name: GITHUB_TOKEN_FILE
+              value: /run/secrets/github/token
+            - name: PUERTO
+              value: "9200"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 9200
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: codigo
+              mountPath: /app
+              readOnly: true
+            - name: github
+              mountPath: /run/secrets/github
+              readOnly: true
+      volumes:
+        - name: codigo
+          configMap:
+            name: estado-alm-codigo
+        - name: github
+          secret:
+            secretName: observabilidad-github

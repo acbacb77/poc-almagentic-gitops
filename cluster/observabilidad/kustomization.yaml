@@ -6,6 +6,7 @@ namespace: observabilidad
 resources:
   - puente-alertas.yaml
   - exportador-agentes.yaml
+  - estado-alm.yaml
 configMapGenerator:
   # Con sufijo de hash: un cambio de código reinicia el pod.
   - name: puente-alertas-codigo
@@ -14,10 +15,14 @@ configMapGenerator:
   - name: exportador-agentes-codigo
     files:
       - exportador.py
+  - name: estado-alm-codigo
+    files:
+      - estado_alm.py
   # Sin sufijo: el chart de Grafana lo monta por nombre.
   - name: grafana-paneles
     files:
       - paneles/api.json
       - paneles/agentes.json
+      - paneles/proceso.json
     options:
       disableNameSuffixHash: true
