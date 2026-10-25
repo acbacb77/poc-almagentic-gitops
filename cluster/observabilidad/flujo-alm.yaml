@@ -1,0 +1,104 @@
+# Flujo ALM (tarea E): aplicación web que muestra en vivo por dónde va cada petición
+# (petición → triage → decisión → spec → código → imagen → promoción → staging).
+# Lee GitHub con el mismo token de solo lectura que el exportador (Secret observabilidad-github)
+# y se publica en localhost:8088. Imagen oficial de Python fijada por digest; código en un ConfigMap.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flujo-alm
+  labels:
+    app.kubernetes.io/name: flujo-alm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flujo-alm
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: flujo-alm
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: flujo-alm
+          image: python:3.12-slim-bookworm@sha256:6a0e06f5ba0b373d051aabd3fffb9b873f27f9a2a3a14bcbe37dee6f0e3bbc70
+          command: ["python", "-I", "/app/flujo_alm.py"]
+          env:
+            - name: REPO_APP
+              value: acbacb77/poc-almagentic-app
+            - name: REPO_CORE
+              value: acbacb77/poc-almagentic-core
+            - name: REPO_GITOPS
+              value: acbacb77/poc-almagentic-gitops
+            - name: RESPONSABLE
+              value: acbacb77
+            - name: GITHUB_TOKEN_FILE
+              value: /run/secrets/github/token
+            - name: HTML
+              value: /app/flujo.html
+            - name: PUERTO
+              value: "8088"
+            - name: INTERVALO
+              value: "30"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8088
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 20m
+              memory: 48Mi
+            limits:
+              memory: 192Mi
+          volumeMounts:
+            - name: codigo
+              mountPath: /app
+              readOnly: true
+            - name: github
+              mountPath: /run/secrets/github
+              readOnly: true
+      volumes:
+        - name: codigo
+          configMap:
+            name: flujo-alm-codigo
+        - name: github
+          secret:
+            secretName: observabilidad-github
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flujo-alm
+  labels:
+    app.kubernetes.io/name: flujo-alm
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: flujo-alm
+  ports:
+    - name: http
+      port: 8088
+      targetPort: http

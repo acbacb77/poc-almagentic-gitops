@@ -87,6 +87,8 @@ for i in $(seq 1 60); do curl -s -o /dev/null "localhost:8000/api/v1/productos?q
 - Workflows en rojo en `main`, incluidos los que no llegaron a arrancar.
 - Staging frente a `main` de app, estado de Argo CD, caducidad del token y métricas DORA aproximadas.
 
+**Flujo ALM** (`flujo_alm.py` y `flujo.html`, en `localhost:8088`) es la vista del mismo proceso pensada para seguirlo a diario. Cada petición ocupa una fila y sus ocho etapas van en columnas: petición, triage, decisión, spec, código, imagen, promoción y staging. Arriba aparece la cola de lo que te toca, y al pulsar una casilla se ve quién hizo esa etapa y cuándo, sus checks y qué falta. Lee GitHub en vivo cada 30 segundos con peticiones condicionales (ETag), así que en estado estable apenas gasta cuota. `/api/salud` dice cuándo fue la última lectura y si falló.
+
 Las alertas del proceso (`ambito="proceso"`) solo se ven en Grafana y Prometheus: Alertmanager las envía a un receptor vacío y no abren issues. Usa el mismo Secret `observabilidad-github`; no hace falta crear nada nuevo.
 
 ## Cómo llega una versión a staging (tarea 10)

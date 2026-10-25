@@ -7,6 +7,7 @@ resources:
   - puente-alertas.yaml
   - exportador-agentes.yaml
   - estado-alm.yaml
+  - flujo-alm.yaml
 configMapGenerator:
   # Con sufijo de hash: un cambio de código reinicia el pod.
   - name: puente-alertas-codigo
@@ -18,6 +19,10 @@ configMapGenerator:
   - name: estado-alm-codigo
     files:
       - estado_alm.py
+  - name: flujo-alm-codigo
+    files:
+      - flujo_alm.py
+      - flujo.html
   # Sin sufijo: el chart de Grafana lo monta por nombre.
   - name: grafana-paneles
     files:

@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flujo ALM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap">
+<style>
+/* Concepto: matriz de control. Filas = peticiones, columnas = las 8 etapas, alineadas para poder
+   leer una etapa de arriba abajo («¿quién está atascado en Código?»). Lo que va bien es silencioso
+   (relleno pálido); lo que necesita a alguien grita (ámbar o rojo sólido). Arriba, la cola de lo
+   que te toca. Al pulsar una celda se abre una ficha lateral. Una sola familia: Archivo, con su
+   eje de anchura (expandida para el título, estrecha para las cabeceras de columna). */
+:root {
+  --suelo: #eef1f4; --hoja: #ffffff; --tinta: #121821; --gris: #5d6875; --fino: #d9dfe6; --rejilla: #e6eaef;
+  --ok: #2e7a50; --ok-cel: #dcefe3;
+  --marcha: #1d5fc4; --marcha-cel: #dfe9fb;
+  --toca: #f1a40f; --toca-txt: #6b4700; --toca-cel: #f6b52a;
+  --mal: #d0352a; --mal-cel: #d0352a;
+  --ojo: #7b4bb3; --ojo-cel: #ece2f7;
+  --nada: #c4ccd5;
+  --f: "Archivo", "Arial Narrow", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --suelo: #0e1318; --hoja: #161d24; --tinta: #e9eef3; --gris: #98a5b2; --fino: #29333d; --rejilla: #1f2830;
+  --ok: #5cc48a; --ok-cel: #183427; --marcha: #6aa2f2; --marcha-cel: #18294a;
+  --toca: #f6b52a; --toca-txt: #f6b52a; --toca-cel: #d79810; --mal: #f06b60; --mal-cel: #c2352b;
+  --ojo: #b892e6; --ojo-cel: #2b2140; --nada: #3a4550; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --suelo: #0e1318; --hoja: #161d24; --tinta: #e9eef3; --gris: #98a5b2; --fino: #29333d; --rejilla: #1f2830;
+  --ok: #5cc48a; --ok-cel: #183427; --marcha: #6aa2f2; --marcha-cel: #18294a;
+  --toca: #f6b52a; --toca-txt: #f6b52a; --toca-cel: #d79810; --mal: #f06b60; --mal-cel: #c2352b;
+  --ojo: #b892e6; --ojo-cel: #2b2140; --nada: #3a4550; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--suelo); color: var(--tinta); font-family: var(--f); font-size: 15px; line-height: 1.45 }
+button { font: inherit; color: inherit }
+a { color: var(--marcha) }
+:focus-visible { outline: 3px solid var(--marcha); outline-offset: 2px }
+.pagina { max-width: 1520px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+
+/* Cabecera y cola de lo que te toca. */
+.cabecera { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 20px 40px; align-items: start }
+@media (max-width: 860px) { .cabecera { grid-template-columns: 1fr } }
+h1 { margin: 0; font-weight: 850; font-stretch: 125%; font-size: clamp(34px, 5.4vw, 60px); line-height: .95; letter-spacing: -0.02em }
+.lema { margin: 12px 0 0; color: var(--gris); max-width: 44ch; font-size: 15.5px }
+.foto { margin-top: 14px; font-size: 13.5px; color: var(--gris); font-variant-numeric: tabular-nums }
+.foto b { color: var(--tinta); font-weight: 600 }
+.vivo { margin-top: 6px; font-size: 13.5px; color: var(--ok); display: flex; gap: 8px; align-items: center }
+.vivo::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none }
+.vivo.mal { color: var(--mal) }
+.cola { background: var(--hoja); border: 1px solid var(--fino); border-radius: 6px; padding: 16px 18px }
+.cola h2 { margin: 0; font-size: 19px; font-weight: 750; letter-spacing: -0.005em }
+.cola ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px }
+.cola li button { width: 100%; text-align: left; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px;
+  align-items: start; background: none; border: 0; padding: 8px; margin: -8px; border-radius: 4px; cursor: pointer }
+.cola li button:hover { background: var(--suelo) }
+.marca { width: 30px; height: 30px; border-radius: 3px; display: grid; place-items: center; font-weight: 900; color: #1c1300; background: var(--toca-cel) }
+.marca.mal { background: var(--mal-cel); color: #fff }
+.cola .que { font-weight: 650 } .cola .donde { display: block; color: var(--gris); font-size: 13.5px }
+.cola .bien { margin: 10px 0 0; color: var(--ok); font-weight: 600 }
+.cifras { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--fino); font-size: 13.5px; color: var(--gris) }
+.cifras b { color: var(--tinta); font-variant-numeric: tabular-nums }
+
+/* Barra de vistas. */
+.barra { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-top: 30px }
+.segmentos { display: inline-flex; background: var(--hoja); border: 1px solid var(--fino); border-radius: 6px; padding: 3px; overflow-x: auto; max-width: 100% }
+.segmentos button { border: 0; background: none; padding: 7px 14px; border-radius: 4px; font-weight: 650; cursor: pointer; white-space: nowrap; color: var(--gris) }
+.segmentos button[aria-selected="true"] { background: var(--tinta); color: var(--suelo) }
+.segmentos .n { font-weight: 450; margin-left: 6px; font-variant-numeric: tabular-nums }
+.filtro { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; font-size: 14.5px }
+.filtro input { width: 17px; height: 17px; accent-color: var(--tinta) }
+
+/* La matriz. */
+.zona { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; margin-top: 14px; align-items: start }
+.zona.con-ficha { grid-template-columns: minmax(0, 1fr) 400px }
+@media (max-width: 1080px) { .zona.con-ficha { grid-template-columns: minmax(0, 1fr) } }
+.matriz-caja { background: var(--hoja); border: 1px solid var(--fino); border-radius: 6px; overflow-x: auto }
+table.matriz { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 860px }
+.matriz th, .matriz td { padding: 0; border-bottom: 1px solid var(--rejilla) }
+.matriz tr:last-child td, .matriz tr:last-child th { border-bottom: 0 }
+.matriz thead th { position: sticky; top: 0; background: var(--hoja); z-index: 2; border-bottom: 1px solid var(--fino);
+  font-stretch: 75%; font-weight: 700; font-size: 13.5px; text-align: center; padding: 10px 4px 8px; vertical-align: bottom }
+.matriz thead th.fila-cab { text-align: left; padding-left: 16px; font-stretch: 100% }
+.col-nom { display: block }
+.col-persona { display: inline-flex; align-items: center; gap: 3px; font-weight: 500; color: var(--gris); font-size: 12px; margin-top: 1px }
+.col-persona svg { width: 11px; height: 11px }
+.col-avisos { display: flex; justify-content: center; gap: 3px; margin-top: 5px; min-height: 16px }
+.chip-col { font-size: 11.5px; font-weight: 800; border-radius: 3px; padding: 0 5px; line-height: 16px; font-variant-numeric: tabular-nums }
+.chip-col.toca { background: var(--toca-cel); color: #1c1300 } .chip-col.mal { background: var(--mal-cel); color: #fff }
+.chip-col.marcha { background: var(--marcha-cel); color: var(--marcha) }
+th.fila { position: sticky; left: 0; z-index: 1; background: var(--hoja); text-align: left; font-weight: 400; padding: 10px 14px 10px 16px;
+  min-width: 250px; max-width: 320px; border-right: 1px solid var(--fino) }
+.fila .num { font-weight: 800; font-variant-numeric: tabular-nums; margin-right: 6px }
+.fila .num a { color: var(--tinta); text-decoration: none }
+.fila .num a:hover { text-decoration: underline }
+.fila .tit { font-weight: 550; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3 }
+.fila .ori { display: block; margin-top: 3px; font-size: 12.5px; color: var(--gris) }
+.fila .ori.alerta { color: var(--mal) }
+.fila .core { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px }
+.fila .core a { font-size: 12px; font-weight: 650; border: 1px solid var(--fino); border-radius: 3px; padding: 0 5px; color: var(--gris); text-decoration: none }
+td.celda { padding: 6px 4px; text-align: center; vertical-align: middle }
+.cel { width: 100%; min-width: 76px; height: 54px; border: 0; border-radius: 4px; cursor: pointer; display: grid; place-items: center;
+  align-content: center; gap: 1px; padding: 4px 6px; background: transparent; position: relative }
+.cel .g { font-weight: 900; font-size: 16px; line-height: 1 }
+.cel .t { font-size: 11.5px; font-stretch: 80%; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.cel.hecho { background: var(--ok-cel); color: var(--ok) }
+.cel.aviso { background: var(--ojo-cel); color: var(--ojo) }
+.cel.curso { background: var(--marcha-cel); color: var(--marcha) }
+.cel.toca { background: var(--toca-cel); color: #1c1300 }
+.cel.mal { background: var(--mal-cel); color: #fff }
+.cel.pendiente { background: repeating-linear-gradient(-45deg, transparent 0 5px, var(--rejilla) 5px 6px); color: var(--nada) }
+.cel.omitido { border: 1px dashed var(--nada); color: var(--gris) }
+.cel.persona::before { content: ""; position: absolute; left: 6px; right: 6px; top: 0; height: 3px; border-radius: 0 0 2px 2px; background: currentColor; opacity: .55 }
+.cel[aria-pressed="true"] { outline: 3px solid var(--tinta); outline-offset: 1px }
+@media (prefers-reduced-motion: no-preference) {
+  .cel.curso .g { animation: parpadeo 1.4s ease-in-out infinite }
+  @keyframes parpadeo { 50% { opacity: .3 } }
+}
+
+/* Ficha lateral. */
+.ficha { background: var(--hoja); border: 1px solid var(--fino); border-radius: 6px; position: sticky; top: max(12px, env(safe-area-inset-top, 0px));
+  max-height: calc(100vh - 24px); overflow-y: auto }
+.ficha .franja { height: 6px; border-radius: 6px 6px 0 0; background: var(--nada) }
+.ficha .franja.hecho { background: var(--ok) } .ficha .franja.aviso { background: var(--ojo) } .ficha .franja.curso { background: var(--marcha) }
+.ficha .franja.toca { background: var(--toca) } .ficha .franja.mal { background: var(--mal) }
+.ficha .dentro { padding: 14px 18px 18px }
+.ficha .arriba { display: flex; justify-content: space-between; gap: 10px; align-items: start }
+.ficha .de { font-size: 13.5px; color: var(--gris) }
+.ficha h3 { margin: 2px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.1 }
+.cerrar { border: 1px solid var(--fino); background: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 13.5px }
+.estado-txt { margin-top: 6px; font-weight: 650 }
+.estado-txt.toca { color: var(--toca-txt) } .estado-txt.mal { color: var(--mal) } .estado-txt.hecho { color: var(--ok) }
+.estado-txt.curso { color: var(--marcha) } .estado-txt.aviso { color: var(--ojo) } .estado-txt.pendiente, .estado-txt.omitido { color: var(--gris) }
+.recorrido { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-top: 12px }
+.recorrido button { height: 8px; border: 0; border-radius: 2px; padding: 0; cursor: pointer; background: var(--nada) }
+.recorrido button.hecho { background: var(--ok) } .recorrido button.aviso { background: var(--ojo) } .recorrido button.curso { background: var(--marcha) }
+.recorrido button.toca { background: var(--toca) } .recorrido button.mal { background: var(--mal) }
+.recorrido button[aria-current="true"] { outline: 2px solid var(--tinta); outline-offset: 2px }
+.meta { margin-top: 12px; font-size: 14px; color: var(--gris) }
+.meta dd, .meta dt { display: inline; margin: 0 } .meta dt { color: var(--tinta); font-weight: 600 } .meta div + div { margin-top: 2px }
+.ficha ul { margin: 12px 0 0; padding-left: 18px } .ficha li + li { margin-top: 4px }
+.hacer { margin-top: 14px; padding: 11px 13px; border-radius: 4px; background: var(--toca-cel); color: #1c1300 }
+.hacer.mal { background: var(--mal-cel); color: #fff }
+.hacer strong { display: block; font-weight: 800; margin-bottom: 2px }
+.ficha h4 { margin: 16px 0 6px; font-size: 14.5px; font-weight: 750 }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; font-size: 14px }
+.checks li { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 8px; align-items: baseline }
+.checks a { color: var(--tinta); overflow-wrap: anywhere }
+.luz { width: 10px; height: 10px; border-radius: 2px; background: var(--nada) }
+.luz.success { background: var(--ok) } .luz.failure, .luz.startup_failure, .luz.timed_out { background: var(--mal) }
+.luz.in_progress, .luz.queued { background: var(--marcha) }
+.enlaces { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 14px; font-weight: 650 }
+
+/* Leyenda. */
+.leyenda { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; font-size: 13px; color: var(--gris); align-items: center }
+.leyenda span { display: inline-flex; gap: 6px; align-items: center }
+.leyenda i { width: 22px; height: 14px; border-radius: 3px; display: inline-block }
+
+/* Plataforma. */
+.plataforma h2 { font-size: 20px; font-weight: 750; margin: 26px 0 10px }
+.tabla { background: var(--hoja); border: 1px solid var(--fino); border-radius: 6px; overflow-x: auto }
+.tabla table { width: 100%; border-collapse: collapse; font-size: 14.5px }
+.tabla th, .tabla td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rejilla); vertical-align: top }
+.tabla th { color: var(--gris); font-weight: 650; font-size: 13.5px } .tabla tr:last-child td { border-bottom: 0 }
+.vacio { background: var(--hoja); border: 1px dashed var(--nada); border-radius: 6px; padding: 20px; color: var(--gris) }
+.vacio strong { display: block; color: var(--tinta); font-size: 16px; margin-bottom: 3px }
+code { font-family: ui-monospace, Menlo, monospace; font-size: .9em }
+</style>
+<style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}@media (prefers-color-scheme: dark){html{color-scheme:dark}}</style>
+</head>
+<body>
+
+
+<div class="pagina">
+  <header class="cabecera">
+    <div>
+      <h1>Flujo ALM</h1>
+      <p class="lema">Cada petición de la POC por las ocho etapas del ciclo, de la petición a staging. Pulsa una casilla para ver qué pasó y qué falta.</p>
+      <div class="foto" id="foto">Cargando…</div>
+      <div class="vivo" id="vivo" role="status">Conectando…</div>
+    </div>
+    <section class="cola" id="cola" aria-label="Lo que te toca"><h2>Lo que te toca</h2><p class="bien">Cargando…</p></section>
+  </header>
+
+  <div class="barra">
+    <div class="segmentos" role="tablist" id="vistas">
+      <button role="tab" id="v-peticiones" data-vista="peticiones" aria-selected="true">Peticiones<span class="n" id="n-peticiones"></span></button>
+      <button role="tab" id="v-cambios" data-vista="cambios" aria-selected="false">Cambios sin petición<span class="n" id="n-cambios"></span></button>
+      <button role="tab" id="v-plataforma" data-vista="plataforma" aria-selected="false">Plataforma<span class="n" id="n-plataforma"></span></button>
+    </div>
+    <label class="filtro" id="filtro-l"><input type="checkbox" id="filtro"> Ocultar lo que ya está en staging</label>
+  </div>
+  <div class="leyenda" id="leyenda">
+    <span><i style="background:var(--ok-cel)"></i>hecho</span>
+    <span><i style="background:var(--ojo-cel)"></i>hecho, con algo que mirar</span>
+    <span><i style="background:var(--marcha-cel)"></i>en marcha</span>
+    <span><i style="background:var(--toca-cel)"></i>te toca</span>
+    <span><i style="background:var(--mal-cel)"></i>fallo</span>
+    <span><i style="background:repeating-linear-gradient(-45deg,transparent 0 4px,var(--fino) 4px 5px)"></i>aún no</span>
+    <span><i style="background:var(--hoja);box-shadow:inset 0 3px 0 var(--gris)"></i>decide una persona</span>
+  </div>
+  <div class="zona" id="zona"><div id="vista"></div><aside class="ficha" id="ficha" hidden aria-live="polite"></aside></div>
+</div>
+
+<script>
+const ETAPAS = [["peticion", "Petición"], ["triage", "Triage"], ["decision", "Decisión"], ["spec", "Spec"],
+  ["codigo", "Código"], ["imagen", "Imagen"], ["promocion", "Promoción"], ["staging", "Staging"]];
+const PERSONA = new Set(["decision", "spec", "codigo", "promocion"]);
+const C = { hecho: "hecho", aviso: "aviso", en_curso: "curso", te_toca: "toca", fallo: "mal", pendiente: "pendiente", omitido: "omitido" };
+const G = { hecho: "✓", aviso: "✓", en_curso: "•••", te_toca: "!", fallo: "✕", pendiente: "", omitido: "–" };
+const TXT = { hecho: "Hecho", aviso: "Hecho, con algo que mirar", en_curso: "En marcha", te_toca: "Te toca", fallo: "Fallo", pendiente: "Aún no ha llegado", omitido: "No aplica" };
+const SVG_PERSONA = '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="3.2" r="2.3" fill="currentColor"/><path d="M1.5 11.5c0-2.6 2-4.3 4.5-4.3s4.5 1.7 4.5 4.3z" fill="currentColor"/></svg>';
+const est = { datos: null, vista: "peticiones", ocultar: false, sel: null };
+try { const v = localStorage.getItem("flujo-vista"); if (v) est.vista = v; } catch (e) {}
+if (["peticiones", "cambios", "plataforma"].includes(location.hash.slice(1))) est.vista = location.hash.slice(1);
+
+const $ = (s) => document.querySelector(s);
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const gh = (u) => /^https:\/\/github\.com\//.test(u || "") ? u : "#";
+const fecha = (iso) => iso ? new Date(iso).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+function hace(iso) {
+  if (!iso) return "";
+  const s = (Date.now() - Date.parse(iso)) / 1000;
+  if (s < 90) return "hace un momento";
+  if (s < 5400) return `hace ${Math.round(s / 60)} min`;
+  if (s < 129600) return `hace ${Math.round(s / 3600)} h`;
+  return `hace ${Math.round(s / 86400)} días`;
+}
+const limpia = (t) => t.replace(/^\[[^\]]{1,30}\]\s*/, "");
+const etapaDe = (x, id) => x.etapas.find((e) => e.id === id);
+const hay = (x, s) => x.etapas.some((e) => e.estado === s);
+const rango = (x) => hay(x, "fallo") ? 0 : hay(x, "te_toca") ? 1 : hay(x, "en_curso") ? 2 : 3;
+const terminado = (x) => !hay(x, "fallo") && !hay(x, "te_toca") && !hay(x, "en_curso");
+const lineas = () => [...est.datos.peticiones, ...est.datos.cambios];
+const buscar = (k) => lineas().find((x) => `${x.tipo}-${x.numero}` === k);
+
+function cabecera() {
+  const d = est.datos, r = d.resumen;
+  $("#foto").innerHTML = `Calculado el <b>${esc(fecha(d.generado))}</b>. Staging <b>${esc(r.staging)}</b>, main <b>${esc(r.main)}</b>: ${r.staging_al_dia ? "al día" : "staging va por detrás"}.`;
+  const cola = [];
+  for (const x of lineas()) for (const e of x.etapas)
+    if (e.estado === "te_toca" || e.estado === "fallo") cola.push({ x, e });
+  cola.sort((a, b) => (a.e.estado === "fallo" ? 0 : 1) - (b.e.estado === "fallo" ? 0 : 1));
+  const p = d.plataforma;
+  let h = `<h2>Lo que te toca</h2>`;
+  if (cola.length || p.workflows_rojos.length) {
+    h += `<ol>` + cola.map(({ x, e }) => `<li><button data-abrir="${x.tipo}-${x.numero}" data-etapa="${e.id}">
+        <span class="marca ${e.estado === "fallo" ? "mal" : ""}">${e.estado === "fallo" ? "✕" : "!"}</span>
+        <span><span class="que">${esc(e.accion || e.titulo)}</span>
+        <span class="donde">${x.tipo === "peticion" ? "Petición" : "PR"} #${esc(x.numero)} · ${esc(e.nombre)} · ${esc(limpia(x.titulo))}</span></span></button></li>`).join("")
+      + p.workflows_rojos.map((w) => `<li><button data-vista="plataforma"><span class="marca mal">✕</span>
+        <span><span class="que">El workflow ${esc(w.workflow)} está en rojo en main</span><span class="donde">${esc(w.repo)} · ${esc(hace(w.cuando))}</span></span></button></li>`).join("") + `</ol>`;
+  } else h += `<p class="bien">Nada que decidir ni arreglar ahora mismo.</p>`;
+  h += `<div class="cifras"><span><b>${r.te_toca}</b> esperan por ti</span><span><b>${r.fallos}</b> fallos</span><span><b>${r.en_curso}</b> en marcha</span><span><b>${p.prs_abiertos.length}</b> PRs abiertos en core y gitops</span></div>`;
+  $("#cola").innerHTML = h;
+  $("#n-peticiones").textContent = d.peticiones.length;
+  $("#n-cambios").textContent = d.cambios.length;
+  $("#n-plataforma").textContent = p.workflows_rojos.length + p.prs_abiertos.length;
+}
+
+function matriz(lista) {
+  const cuenta = (id, s) => lista.filter((x) => etapaDe(x, id)?.estado === s).length;
+  let h = `<div class="matriz-caja"><table class="matriz"><thead><tr><th class="fila-cab" scope="col">${est.vista === "peticiones" ? "Petición" : "Cambio"}</th>`;
+  for (const [id, nom] of ETAPAS) {
+    const t = cuenta(id, "te_toca"), m = cuenta(id, "fallo"), c = cuenta(id, "en_curso");
+    h += `<th scope="col"><span class="col-nom">${nom}</span>${PERSONA.has(id) ? `<span class="col-persona">${SVG_PERSONA}persona</span>` : ""}
+      <span class="col-avisos">${m ? `<span class="chip-col mal">${m}</span>` : ""}${t ? `<span class="chip-col toca">${t}</span>` : ""}${c ? `<span class="chip-col marcha">${c}</span>` : ""}</span></th>`;
+  }
+  h += `</tr></thead><tbody>`;
+  for (const x of lista) {
+    const k = `${x.tipo}-${x.numero}`;
+    const ori = { alerta: "abierta por una alerta", dependabot: "Dependabot", agente: "agente", persona: x.tipo === "peticion" ? "abierta por una persona" : "persona" }[x.origen];
+    h += `<tr><th class="fila" scope="row"><span class="tit"><span class="num"><a href="${gh(x.url)}" target="_blank" rel="noopener">#${esc(x.numero)}</a></span>${esc(limpia(x.titulo))}</span>
+      <span class="ori ${x.origen === "alerta" ? "alerta" : ""}">${esc(ori)}</span>`;
+    if (x.plataforma.length) h += `<span class="core">` + x.plataforma.map((p) => `<a href="${gh(p.url)}" target="_blank" rel="noopener" title="${esc(p.titulo)} (${esc(p.estado)})">core#${esc(p.numero)}</a>`).join("") + `</span>`;
+    h += `</th>`;
+    for (const [id] of ETAPAS) {
+      const e = etapaDe(x, id);
+      if (!e) { h += `<td class="celda"></td>`; continue; }
+      const sel = est.sel && est.sel.k === k && est.sel.id === id;
+      const corto = e.titulo || "";
+      h += `<td class="celda"><button class="cel ${C[e.estado]} ${PERSONA.has(id) ? "persona" : ""}" id="c-${k}-${id}" data-k="${k}" data-id="${id}" aria-pressed="${sel}"
+        aria-label="${esc(e.nombre)} de #${esc(x.numero)}: ${esc(TXT[e.estado])}${corto ? ", " + esc(corto) : ""}" title="${esc(corto)}">
+        <span class="g" aria-hidden="true">${G[e.estado]}</span><span class="t">${esc(corto)}</span></button></td>`;
+    }
+    h += `</tr>`;
+  }
+  return h + `</tbody></table></div>`;
+}
+
+function ficha() {
+  const f = $("#ficha");
+  const x = est.sel && buscar(est.sel.k);
+  const e = x && etapaDe(x, est.sel.id);
+  $("#zona").classList.toggle("con-ficha", Boolean(e));
+  if (!e) { f.hidden = true; f.innerHTML = ""; return; }
+  const c = C[e.estado];
+  let h = `<div class="franja ${c}"></div><div class="dentro"><div class="arriba"><div>
+    <div class="de">${x.tipo === "peticion" ? "Petición" : "PR"} #${esc(x.numero)} · ${esc(limpia(x.titulo))}</div>
+    <h3>${esc(e.nombre)}</h3></div><button class="cerrar" id="cerrar">Cerrar</button></div>
+    <div class="estado-txt ${c}">${esc(TXT[e.estado])}${PERSONA.has(e.id) ? " · decide una persona" : ""}</div>
+    <div class="recorrido" role="group" aria-label="Recorrido de esta petición">` +
+    ETAPAS.map(([id, nom]) => { const t = etapaDe(x, id); return t ? `<button class="${C[t.estado]}" data-k="${est.sel.k}" data-id="${id}" aria-current="${id === e.id}" aria-label="${nom}: ${TXT[t.estado]}" title="${nom}"></button>` : "<span></span>"; }).join("") + `</div>`;
+  const meta = [["Qué", e.titulo], ["Quién", e.quien], ["Cuándo", e.cuando ? `${fecha(e.cuando)} (${hace(e.cuando)})` : ""]].filter(([, v]) => v);
+  if (meta.length) h += `<dl class="meta">${meta.map(([k, v]) => `<div><dt>${k}:</dt> <dd>${esc(v)}</dd></div>`).join("")}</dl>`;
+  if (e.detalle.length) h += `<ul>${e.detalle.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
+  if (e.accion) h += `<div class="hacer ${e.estado === "fallo" ? "mal" : ""}"><strong>${e.estado === "fallo" ? "Qué hacer" : "Qué falta"}</strong>${esc(e.accion)}</div>`;
+  if (e.checks.length) {
+    const ok = e.checks.filter((k) => k.estado === "success").length;
+    h += `<h4>Checks: ${ok} de ${e.checks.length} en verde</h4><ul class="checks">` + e.checks.map((k) =>
+      `<li><span class="luz ${esc(k.estado)}" title="${esc(k.estado)}"></span><a href="${gh(k.url)}" target="_blank" rel="noopener">${esc(k.nombre)}</a></li>`).join("") + `</ul>`;
+  }
+  if (e.enlaces.length) h += `<div class="enlaces">${e.enlaces.map((l) => `<a href="${gh(l.url)}" target="_blank" rel="noopener">Abrir ${esc(l.texto)} en GitHub</a>`).join("")}</div>`;
+  f.innerHTML = h + `</div>`;
+  f.hidden = false;
+}
+
+function plataforma() {
+  const p = est.datos.plataforma;
+  let h = `<div class="plataforma"><h2>Workflows en rojo en main</h2>`;
+  h += p.workflows_rojos.length ? `<div class="tabla"><table><thead><tr><th>Repo</th><th>Workflow</th><th>Resultado</th><th>Cuándo</th></tr></thead><tbody>` +
+    p.workflows_rojos.map((w) => `<tr><td>${esc(w.repo)}</td><td><a href="${gh(w.url)}" target="_blank" rel="noopener">${esc(w.workflow)}</a></td><td>${esc(w.conclusion)}</td><td>${esc(hace(w.cuando))}</td></tr>`).join("") + `</tbody></table></div>`
+    : `<div class="vacio"><strong>Todo en verde</strong>El último run de cada workflow en main de app, core y gitops terminó bien.</div>`;
+  h += `<h2>PRs abiertos en core y gitops</h2>`;
+  h += p.prs_abiertos.length ? `<div class="tabla"><table><thead><tr><th>PR</th><th>Título</th><th>Autor</th><th>Abierto</th></tr></thead><tbody>` +
+    p.prs_abiertos.map((x) => `<tr><td><a href="${gh(x.url)}" target="_blank" rel="noopener">${esc(x.repo)}#${esc(x.numero)}</a></td><td>${esc(x.titulo)}</td><td>@${esc(x.autor)}</td><td>${esc(hace(x.desde))}</td></tr>`).join("") + `</tbody></table></div>`
+    : `<div class="vacio"><strong>Nada pendiente en la plataforma</strong>No hay PRs abiertos en core ni en gitops, sin contar las promociones.</div>`;
+  return h + `</div>`;
+}
+
+function pintar() {
+  document.querySelectorAll("#vistas button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.vista === est.vista)));
+  const enPlataforma = est.vista === "plataforma";
+  $("#filtro-l").hidden = enPlataforma || !est.datos;
+  $("#leyenda").hidden = enPlataforma;
+  if (!est.datos) return;
+  cabecera();
+  if (enPlataforma) { est.sel = null; ficha(); $("#vista").innerHTML = plataforma(); return; }
+  let lista = [...est.datos[est.vista]];
+  if (est.ocultar) lista = lista.filter((x) => !terminado(x));
+  lista.sort((a, b) => rango(a) - rango(b) || b.numero - a.numero);
+  $("#vista").innerHTML = lista.length ? matriz(lista)
+    : `<div class="vacio"><strong>Todo lo de esta vista está en staging o cerrado</strong>Desmarca «Ocultar lo que ya está en staging» para ver el recorrido completo.</div>`;
+  ficha();
+}
+
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("button");
+  if (!b) return;
+  if (b.id === "cerrar") { const k = est.sel; est.sel = null; pintar(); document.getElementById(`c-${k.k}-${k.id}`)?.focus(); return; }
+  if (b.dataset.vista) { est.vista = b.dataset.vista; try { localStorage.setItem("flujo-vista", est.vista); } catch (e) {} pintar(); return; }
+  if (b.dataset.abrir) {
+    const [tipo] = b.dataset.abrir.split("-");
+    est.vista = tipo === "peticion" ? "peticiones" : "cambios";
+    est.sel = { k: b.dataset.abrir, id: b.dataset.etapa };
+    pintar(); $("#ficha").scrollIntoView({ block: "nearest", behavior: "smooth" }); return;
+  }
+  if (b.dataset.k) {
+    const mismo = est.sel && est.sel.k === b.dataset.k && est.sel.id === b.dataset.id && b.classList.contains("cel");
+    est.sel = mismo ? null : { k: b.dataset.k, id: b.dataset.id };
+    pintar();
+    if (!mismo && window.matchMedia("(max-width: 1080px)").matches) $("#ficha").scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+});
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && est.sel) { est.sel = null; pintar(); } });
+$("#filtro").addEventListener("change", (e) => { est.ocultar = e.target.checked; pintar(); });
+
+function sinDatos(msg) {
+  $("#foto").textContent = "Sin datos";
+  $("#cola").innerHTML = `<h2>Lo que te toca</h2><p class="bien" style="color:var(--gris)">Sin datos todavía.</p>`;
+  $("#vista").innerHTML = `<div class="vacio"><strong>${esc(msg)}</strong>Los datos los calcula la propia aplicación leyendo GitHub. La aplicación lo recalcula sola cada minuto; si persiste, mira <code>kubectl -n observabilidad logs deploy/flujo-alm</code>.</div>`;
+}
+
+pintar();
+// Datos en vivo: la propia aplicación lee GitHub y los sirve en /api/flujo; aquí se piden cada 30 s.
+let fallos = 0;
+async function cargar() {
+  try {
+    const r = await fetch("/api/flujo", { cache: "no-store" });
+    const d = await r.json();
+    if (!r.ok) { if (!est.datos) sinDatos(d.error || "La aplicación todavía no ha leído GitHub."); }
+    else { est.datos = d; fallos = 0; pintar(); }
+  } catch (e) {
+    fallos += 1;
+    if (!est.datos) sinDatos("No se puede conectar con la aplicación Flujo ALM.");
+  }
+  vivo();
+}
+function vivo() {
+  const s = est.datos && est.datos.salud;
+  const el = $("#vivo");
+  if (!s) { el.textContent = "Conectando…"; el.className = "vivo"; return; }
+  const problema = fallos > 0 ? "sin conexión con la aplicación" : !s.ok ? `última lectura con error: ${s.error}` : "";
+  el.className = "vivo" + (problema ? " mal" : "");
+  el.textContent = problema ? `Datos de ${hace(s.ultima_lectura)} · ${problema}`
+    : `En vivo · leído de GitHub ${hace(s.ultima_lectura)} · ${s.consultas_restantes ?? "?"} consultas libres`;
+}
+cargar();
+setInterval(cargar, 30000);
+setInterval(vivo, 10000);
+</script>
+
+</body>
+</html>
