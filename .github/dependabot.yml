@@ -1,0 +1,30 @@
+# Mantenimiento de dependencias (tarea C). Dependabot propone; una persona revisa y fusiona.
+#
+# - La imagen de Python del puente y del exportador (cluster/observabilidad), fijada por digest.
+#   Python se queda en 3.12; el salto de intérprete se decide aparte.
+# - apps/ NO entra: la imagen de la API la cambia solo el promotor, después de verificarla.
+# - Los charts de Helm de argocd-apps/ tampoco: Dependabot no lee aplicaciones de Argo CD.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directory: /cluster/observabilidad
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: deps
+    ignore:
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: deps
